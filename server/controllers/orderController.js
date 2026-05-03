@@ -3,13 +3,15 @@ const prisma = require('../config/db');
 
 exports.createOrder = async (req, res) => {
     try {
-        const { id_user, total_amount, items } = req.body;
+        const { id_user, total_amount, items, shipping_address, shipping_phone } = req.body;
         
         // Nested create allows automatically wrapping in a transaction in Prisma
         const order = await prisma.order.create({
             data: {
-                id_user: parseInt(id_user),
+                id_user: id_user ? parseInt(id_user) : null,
                 total_amount: parseInt(total_amount),
+                shipping_address,
+                shipping_phone,
                 productOrders: {
                     create: items.map(item => ({
                         id_product: parseInt(item.id_product),
@@ -226,6 +228,77 @@ exports.restoreOrder = async (req, res) => {
             data: { deletedAt: null }
         });
         res.json({ message: 'Khôi phục đơn hàng thành công' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Xóa vĩnh viễn đơn hàng (chỉ xóa được đơn hàng đã xóa mềm)
+exports.forceDeleteOrder = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const order = await prisma.order.findFirst({ where: { id_order: parseInt(id) } });
+
+        if (!order) {
+            return res.status(404).json({ message: 'Không tìm thấy đơn hàng' });
+        }
+
+        if (!order.deletedAt) {
+            return res.status(400).json({ message: 'Chỉ có thể xóa vĩnh viễn đơn hàng đã xóa mềm' });
+        }
+
+        await prisma.$transaction(async (tx) => {
+            await tx.productOrder.deleteMany({ where: { id_order: parseInt(id) } });
+            await tx.order.delete({ where: { id_order: parseInt(id) } });
+        });
+        res.json({ message: 'Xóa vĩnh viễn đơn hàng thành công' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Cập nhật thông tin đơn hàng (Admin)
+exports.updateOrder = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { total_amount, status, shipping_address, shipping_phone, items } = req.body;
+
+        const updateData = {};
+        if (total_amount !== undefined) updateData.total_amount = parseInt(total_amount);
+        if (status !== undefined) updateData.status = status;
+        if (shipping_address !== undefined) updateData.shipping_address = shipping_address;
+        if (shipping_phone !== undefined) updateData.shipping_phone = shipping_phone;
+
+        // Use transaction to ensure data integrity
+        const result = await prisma.$transaction(async (tx) => {
+            // 1. Update basic order info
+            const updatedOrder = await tx.order.update({
+                where: { id_order: parseInt(id) },
+                data: updateData
+            });
+
+            // 2. If items are provided, replace them
+            if (items && Array.isArray(items)) {
+                // Delete existing items
+                await tx.productOrder.deleteMany({
+                    where: { id_order: parseInt(id) }
+                });
+
+                // Create new items
+                await tx.productOrder.createMany({
+                    data: items.map(item => ({
+                        id_order: parseInt(id),
+                        id_product: parseInt(item.id_product),
+                        product_quantity: parseInt(item.quantity),
+                        product_price: parseInt(item.price)
+                    }))
+                });
+            }
+
+            return updatedOrder;
+        });
+
+        res.json({ message: "Cập nhật đơn hàng thành công", order: result });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

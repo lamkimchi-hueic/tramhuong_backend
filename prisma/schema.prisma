@@ -11,7 +11,7 @@ model User {
   id_user   Int       @id @default(autoincrement())
   username  String    @db.VarChar(256)
   password  String    @db.VarChar(256)
-  phone     String?   @db.VarChar(11)
+  phone     String?   @db.VarChar(20)
   address   String?   @db.VarChar(256)
   role      Role      @default(Customer)
   createdAt DateTime  @default(now())
@@ -28,24 +28,42 @@ model Product {
   product_name   String?   @db.VarChar(256)
   product_price  Int
   id_category    Int?
-  product_status Boolean   @default(true)
+  product_status Boolean?  @default(true)
+  image_url      String?   @db.VarChar(512)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
 
-  category       Category?     @relation(fields: [id_category], references: [id_category], onDelete: NoAction, onUpdate: NoAction)
+  category       Category?        @relation(fields: [id_category], references: [id_category], onDelete: NoAction, onUpdate: NoAction)
   productOrders  ProductOrder[]
+  variants       ProductVariant[]
 
   @@map("Products")
+}
+
+model ProductVariant {
+  id_variant  Int      @id @default(autoincrement())
+  id_product  Int
+  size        String   @db.VarChar(50)
+  price       Int
+  stock       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  product     Product  @relation(fields: [id_product], references: [id_product], onDelete: Cascade, onUpdate: Cascade)
+
+  @@map("product_variants")
 }
 
 model Order {
   id_order     Int         @id @default(autoincrement())
   id_user      Int?
   order_date   DateTime    @default(now())
-  total_amount Int?
-  status       OrderStatus @default(Pending)
-  createdAt    DateTime    @default(now())
+  total_amount     Int?
+  status           OrderStatus @default(Pending)
+  shipping_address String?     @db.VarChar(256)
+  shipping_phone   String?     @db.VarChar(20)
+  createdAt        DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   deletedAt    DateTime?
 
@@ -58,6 +76,7 @@ model Order {
 model Category {
   id_category   Int       @id @default(autoincrement())
   category_name String    @db.VarChar(256)
+  image_url     String?   @db.VarChar(512)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
@@ -72,14 +91,22 @@ model ProductOrder {
   id_product       Int
   product_quantity Int?
   product_price    Int?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
 
   order   Order   @relation(fields: [id_order], references: [id_order], onDelete: NoAction, onUpdate: NoAction)
   product Product @relation(fields: [id_product], references: [id_product], onDelete: NoAction, onUpdate: NoAction)
 
   @@id([id_order, id_product])
   @@map("products_orders")
+}
+
+model SiteSetting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique @db.VarChar(100)
+  value     String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("site_settings")
 }
 
 enum Role {

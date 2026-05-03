@@ -95,12 +95,11 @@ exports.createCategory = async (req, res) => {
         }
 
         if (existingCategory && existingCategory.deletedAt && wantsRestore) {
+            const restoreData = { category_name: categoryName, deletedAt: null };
+            if (req.file) restoreData.image_url = `/uploads/categories/${req.file.filename}`;
             const updatedCategory = await prisma.category.update({
                 where: { id_category: existingCategory.id_category },
-                data: {
-                    category_name: categoryName,
-                    deletedAt: null
-                }
+                data: restoreData
             });
             return res.status(200).json({
                 message: 'Khôi phục danh mục thành công!',
@@ -108,9 +107,10 @@ exports.createCategory = async (req, res) => {
             });
         }
 
-        const newCategory = await prisma.category.create({ 
-            data: { category_name: categoryName } 
-        });
+        const data = { category_name: categoryName };
+        if (req.file) data.image_url = `/uploads/categories/${req.file.filename}`;
+
+        const newCategory = await prisma.category.create({ data });
         res.status(201).json(newCategory);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -127,11 +127,14 @@ exports.updateCategory = async (req, res) => {
         }
 
         const { category_name } = req.body;
+        const updateData = {
+            category_name: category_name !== undefined ? category_name : category.category_name
+        };
+        if (req.file) updateData.image_url = `/uploads/categories/${req.file.filename}`;
+
         const updatedCategory = await prisma.category.update({
             where: { id_category: parseInt(id) },
-            data: {
-                category_name: category_name !== undefined ? category_name : category.category_name
-            }
+            data: updateData
         });
         
         res.json(updatedCategory);
@@ -219,6 +222,29 @@ exports.restoreCategory = async (req, res) => {
             data: { deletedAt: null }
         });
         res.json({ message: 'Khôi phục danh mục thành công' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Xóa vĩnh viễn danh mục (chỉ xóa được danh mục đã xóa mềm)
+exports.forceDeleteCategory = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const category = await prisma.category.findFirst({ where: { id_category: parseInt(id) } });
+
+        if (!category) {
+            return res.status(404).json({ message: 'Không tìm thấy danh mục' });
+        }
+
+        if (!category.deletedAt) {
+            return res.status(400).json({ message: 'Chỉ có thể xóa vĩnh viễn danh mục đã xóa mềm' });
+        }
+
+        await prisma.category.delete({
+            where: { id_category: parseInt(id) }
+        });
+        res.json({ message: 'Xóa vĩnh viễn danh mục thành công' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

@@ -143,7 +143,9 @@ exports.login = async (req, res) => {
             user: {
                 id_user: user.id_user,
                 username: user.username,
-                role: user.role
+                role: user.role,
+                phone: user.phone,
+                address: user.address
             }
         });
     } catch (error) {
@@ -312,6 +314,29 @@ exports.restoreUser = async (req, res) => {
     }
 };
 
+// Xóa vĩnh viễn user (chỉ xóa được user đã xóa mềm)
+exports.forceDeleteUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const user = await prisma.user.findFirst({ where: { id_user: parseInt(id) } });
+
+        if (!user) {
+            return res.status(404).json({ message: 'User không tồn tại!' });
+        }
+
+        if (!user.deletedAt) {
+            return res.status(400).json({ message: 'Chỉ có thể xóa vĩnh viễn user đã xóa mềm' });
+        }
+
+        await prisma.user.delete({
+            where: { id_user: parseInt(id) }
+        });
+        res.json({ message: 'Xóa vĩnh viễn user thành công!' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 // Cập nhật thông tin user
 exports.updateUser = async (req, res) => {
     try {
@@ -324,6 +349,14 @@ exports.updateUser = async (req, res) => {
 
         const { username, phone, address, role, password } = req.body || {};
         
+        // Security check: Only Admin can update other users or change roles
+        const isSelf = req.user.id_user === parsedId;
+        const isAdmin = req.user.role === 'Admin';
+
+        if (!isSelf && !isAdmin) {
+            return res.status(403).json({ message: 'Bạn không có quyền cập nhật thông tin người khác!' });
+        }
+
         const user = await prisma.user.findFirst({
             where: { id_user: parsedId, deletedAt: null }
         });
@@ -351,6 +384,9 @@ exports.updateUser = async (req, res) => {
         if (address !== undefined) dataToUpdate.address = address;
         
         if (role !== undefined) {
+             if (!isAdmin) {
+                 return res.status(403).json({ message: 'Chỉ Admin mới có quyền thay đổi vai trò người dùng!' });
+             }
              const validRoles = ['Admin', 'Employee', 'Customer'];
              if (!validRoles.includes(role)) {
                  return res.status(400).json({ message: 'Quyền (role) không hợp lệ! Vui lòng chọn: Admin, Employee, hoặc Customer.' });

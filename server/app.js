@@ -10,6 +10,7 @@
 // 
 // chạy server
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });//Nạp thư viện dotenv từ server/.env
 const express = require('express');
 const cors = require('cors');
@@ -19,10 +20,17 @@ const routes = require('./routes');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Ensure uploads directory exists
+const uploadDir = path.join(__dirname, '../uploads/products');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve uploaded images as static files
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Routes
 app.use('/api', routes);

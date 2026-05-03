@@ -35,7 +35,7 @@ const normalizeStatus = (statusValue) => {
     return undefined;
 };
 
-const buildProductPayload = (body = {}) => {
+const buildProductPayload = (body = {}, file = null) => {
     const payload = {};
 
     if (body.product_name !== undefined) payload.product_name = body.product_name;
@@ -47,21 +47,37 @@ const buildProductPayload = (body = {}) => {
         payload.product_status = normalizedStatus;
     }
 
+    // Handle image upload
+    if (file) {
+        payload.image_url = `/uploads/products/${file.filename}`;
+    } else if (body.image_url !== undefined) {
+        payload.image_url = body.image_url;
+    }
+
     return payload;
 };
 
 // Lấy tất cả sản phẩm
 exports.getAllProducts = async (req, res) => {
     try {
+        const { q, search, status, product_status } = req.query;
         const where = { deletedAt: null };
-        const normalizedStatus = normalizeStatus(req.query.status ?? req.query.product_status);
+        
+        const normalizedStatus = normalizeStatus(status ?? product_status);
         if (normalizedStatus !== undefined) {
             where.product_status = normalizedStatus;
         }
 
+        const searchTerm = q || search;
+        if (searchTerm) {
+            where.product_name = {
+                contains: searchTerm,
+            };
+        }
+
         const products = await prisma.product.findMany({
             where,
-            include: { category: { select: { category_name: true } } }
+            include: { category: { select: { category_name: true } }, variants: true }
         });
         res.json(products);
     } catch (error) {
@@ -75,7 +91,7 @@ exports.getProductById = async (req, res) => {
         const { id } = req.params;
         const product = await prisma.product.findFirst({
             where: { id_product: parseInt(id), deletedAt: null },
-            include: { category: { select: { category_name: true } } }
+            include: { category: { select: { category_name: true } }, variants: true }
         });
         if (!product) {
             return res.status(404).json({ message: "Không tìm thấy sản phẩm" });
@@ -89,7 +105,7 @@ exports.getProductById = async (req, res) => {
 // Tạo sản phẩm mới
 exports.createProducts = async (req, res) => {
     try {
-        const payload = buildProductPayload(req.body);
+        const payload = buildProductPayload(req.body, req.file);
         const wantsRestore = normalizeRestoreChoice(req.body?.confirm_restore);
 
         const rawProductName = payload.product_name;
@@ -144,7 +160,7 @@ exports.createProducts = async (req, res) => {
 exports.updateProduct = async (req, res) => {
     try {
         const { id } = req.params;
-        const payload = buildProductPayload(req.body);
+        const payload = buildProductPayload(req.body, req.file);
 
         if (Object.keys(payload).length === 0) {
             return res.status(400).json({ message: "Không có dữ liệu hợp lệ để cập nhật" });
@@ -204,7 +220,7 @@ exports.getProductsByCategory = async (req, res) => {
 
         const products = await prisma.product.findMany({
             where,
-            include: { category: { select: { category_name: true } } }
+            include: { category: { select: { category_name: true } }, variants: true }
         });
         res.json(products);
     } catch (error) {
@@ -221,10 +237,61 @@ exports.getDeletedProducts = async (req, res) => {
                     not: null
                 }
             },
-            include: { category: { select: { category_name: true } } }
+            include: { category: { select: { category_name: true } }, variants: true }
         });
 
         res.json(products);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// ========== Product Variants ==========
+exports.getVariants = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const variants = await prisma.productVariant.findMany({
+            where: { id_product: parseInt(id) },
+            orderBy: { size: 'asc' }
+        });
+        res.json(variants);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+exports.upsertVariants = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { variants } = req.body; // [{ size, price, stock }, ...]
+
+        const product = await prisma.product.findFirst({
+            where: { id_product: parseInt(id), deletedAt: null }
+        });
+        if (!product) {
+            return res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
+        }
+
+        // Delete old variants and create new ones in a transaction
+        await prisma.$transaction([
+            prisma.productVariant.deleteMany({ where: { id_product: parseInt(id) } }),
+            ...variants.filter(v => v.size && v.price).map(v =>
+                prisma.productVariant.create({
+                    data: {
+                        id_product: parseInt(id),
+                        size: v.size.trim(),
+                        price: parseInt(v.price),
+                        stock: parseInt(v.stock) || 0
+                    }
+                })
+            )
+        ]);
+
+        const updated = await prisma.productVariant.findMany({
+            where: { id_product: parseInt(id) },
+            orderBy: { size: 'asc' }
+        });
+        res.json({ message: 'Cập nhật biến thể thành công', variants: updated });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -251,6 +318,61 @@ exports.restoreProduct = async (req, res) => {
             data: { deletedAt: null }
         });
         res.json({ message: 'Khôi phục sản phẩm thành công' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Xóa vĩnh viễn sản phẩm (chỉ xóa được sản phẩm đã xóa mềm)
+exports.forceDeleteProduct = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const product = await prisma.product.findFirst({
+            where: { id_product: parseInt(id) }
+        });
+
+        if (!product) {
+            return res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
+        }
+
+        if (!product.deletedAt) {
+            return res.status(400).json({ message: 'Chỉ có thể xóa vĩnh viễn sản phẩm đã xóa mềm' });
+        }
+
+        await prisma.product.delete({
+            where: { id_product: parseInt(id) }
+        });
+        res.json({ message: 'Xóa vĩnh viễn sản phẩm thành công' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Upload ảnh riêng cho sản phẩm
+exports.uploadProductImage = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!req.file) {
+            return res.status(400).json({ message: 'Vui lòng chọn ảnh để upload!' });
+        }
+
+        const product = await prisma.product.findFirst({
+            where: { id_product: parseInt(id), deletedAt: null }
+        });
+
+        if (!product) {
+            return res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
+        }
+
+        const image_url = `/uploads/products/${req.file.filename}`;
+
+        const updatedProduct = await prisma.product.update({
+            where: { id_product: parseInt(id) },
+            data: { image_url }
+        });
+
+        res.json({ message: 'Upload ảnh thành công!', image_url, product: updatedProduct });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
