@@ -4,6 +4,7 @@
   "description": "Tram Huong Backend API",
   "main": "server/app.js",
   "scripts": {
+    "build": "npx prisma generate",
     "start": "node server/app.js",
     "dev": "node --watch server/app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
