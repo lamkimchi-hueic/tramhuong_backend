@@ -12,7 +12,7 @@ const token = jwt.sign(
 
 async function testUpdate() {
     try {
-        const response = await fetch('http://localhost:3000/api/users/abc', {
+        const response = await fetch('http://https://tramhuong-backend.onrender.com/api/users/abc', {
             method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${token}`,

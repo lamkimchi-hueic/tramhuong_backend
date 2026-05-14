@@ -95,11 +95,12 @@ exports.createCategory = async (req, res) => {
         }
 
         if (existingCategory && existingCategory.deletedAt && wantsRestore) {
-            const restoreData = { category_name: categoryName, deletedAt: null };
-            if (req.file) restoreData.image_url = `/uploads/categories/${req.file.filename}`;
             const updatedCategory = await prisma.category.update({
                 where: { id_category: existingCategory.id_category },
-                data: restoreData
+                data: {
+                    category_name: categoryName,
+                    deletedAt: null
+                }
             });
             return res.status(200).json({
                 message: 'Khôi phục danh mục thành công!',
@@ -107,10 +108,9 @@ exports.createCategory = async (req, res) => {
             });
         }
 
-        const data = { category_name: categoryName };
-        if (req.file) data.image_url = `/uploads/categories/${req.file.filename}`;
-
-        const newCategory = await prisma.category.create({ data });
+        const newCategory = await prisma.category.create({ 
+            data: { category_name: categoryName } 
+        });
         res.status(201).json(newCategory);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -127,14 +127,11 @@ exports.updateCategory = async (req, res) => {
         }
 
         const { category_name } = req.body;
-        const updateData = {
-            category_name: category_name !== undefined ? category_name : category.category_name
-        };
-        if (req.file) updateData.image_url = `/uploads/categories/${req.file.filename}`;
-
         const updatedCategory = await prisma.category.update({
             where: { id_category: parseInt(id) },
-            data: updateData
+            data: {
+                category_name: category_name !== undefined ? category_name : category.category_name
+            }
         });
         
         res.json(updatedCategory);
