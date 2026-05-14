@@ -8,7 +8,7 @@ const orderCtrl = require('../controllers/orderController');
 const settingCtrl = require('../controllers/siteSettingController');
 const { verifyToken, isAdmin, isEmployee } = require('../middleware/auth');
 const upload = require('../middleware/upload');
-const { uploadCategory } = require('../middleware/upload');
+const uploadCategory = require('../middleware/upload').uploadCategory;
 
 // ========== Auth Routes ==========
 router.post('/register', authCtrl.register);
