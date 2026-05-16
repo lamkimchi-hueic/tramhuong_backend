@@ -1,4 +1,5 @@
 const prisma = require("../config/db");
+const { uploadToCloudinary } = require("../middleware/upload");
 
 const normalizeRestoreChoice = (value) => {
     if (value === true) return true;
@@ -35,7 +36,7 @@ const normalizeStatus = (statusValue) => {
     return undefined;
 };
 
-const buildProductPayload = (body = {}, file = null) => {
+const buildProductPayload = async (body = {}, file = null) => {
     const payload = {};
 
     if (body.product_name !== undefined) payload.product_name = body.product_name;
@@ -49,7 +50,8 @@ const buildProductPayload = (body = {}, file = null) => {
 
     // Handle image upload
     if (file) {
-        payload.image_url = `/uploads/products/${file.filename}`;
+        const cloudinaryUrl = await uploadToCloudinary(file.path, 'products');
+        payload.image_url = cloudinaryUrl || `/uploads/products/${file.filename}`;
     } else if (body.image_url !== undefined) {
         payload.image_url = body.image_url;
     }
@@ -105,7 +107,7 @@ exports.getProductById = async (req, res) => {
 // Tạo sản phẩm mới
 exports.createProducts = async (req, res) => {
     try {
-        const payload = buildProductPayload(req.body, req.file);
+        const payload = await buildProductPayload(req.body, req.file);
         const wantsRestore = normalizeRestoreChoice(req.body?.confirm_restore);
 
         const rawProductName = payload.product_name;
@@ -160,7 +162,7 @@ exports.createProducts = async (req, res) => {
 exports.updateProduct = async (req, res) => {
     try {
         const { id } = req.params;
-        const payload = buildProductPayload(req.body, req.file);
+        const payload = await buildProductPayload(req.body, req.file);
 
         if (Object.keys(payload).length === 0) {
             return res.status(400).json({ message: "Không có dữ liệu hợp lệ để cập nhật" });
@@ -365,7 +367,8 @@ exports.uploadProductImage = async (req, res) => {
             return res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
         }
 
-        const image_url = `/uploads/products/${req.file.filename}`;
+        const cloudinaryUrl = await uploadToCloudinary(req.file.path, 'products');
+        const image_url = cloudinaryUrl || `/uploads/products/${req.file.filename}`;
 
         const updatedProduct = await prisma.product.update({
             where: { id_product: parseInt(id) },

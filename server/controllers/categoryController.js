@@ -1,4 +1,5 @@
 const prisma = require("../config/db");
+const { uploadToCloudinary } = require("../middleware/upload");
 
 const normalizeRestoreChoice = (value) => {
     if (value === true) return true;
@@ -108,8 +109,16 @@ exports.createCategory = async (req, res) => {
             });
         }
 
+        const data = { category_name: categoryName };
+        if (req.file) {
+            const cloudinaryUrl = await uploadToCloudinary(req.file.path, 'categories');
+            data.image_url = cloudinaryUrl || `/uploads/categories/${req.file.filename}`;
+        } else if (req.body.image_url) {
+            data.image_url = req.body.image_url;
+        }
+
         const newCategory = await prisma.category.create({ 
-            data: { category_name: categoryName } 
+            data: data 
         });
         res.status(201).json(newCategory);
     } catch (error) {
@@ -127,11 +136,20 @@ exports.updateCategory = async (req, res) => {
         }
 
         const { category_name } = req.body;
+        const data = {
+            category_name: category_name !== undefined ? category_name : category.category_name
+        };
+
+        if (req.file) {
+            const cloudinaryUrl = await uploadToCloudinary(req.file.path, 'categories');
+            data.image_url = cloudinaryUrl || `/uploads/categories/${req.file.filename}`;
+        } else if (req.body.image_url !== undefined) {
+            data.image_url = req.body.image_url;
+        }
+
         const updatedCategory = await prisma.category.update({
             where: { id_category: parseInt(id) },
-            data: {
-                category_name: category_name !== undefined ? category_name : category.category_name
-            }
+            data: data
         });
         
         res.json(updatedCategory);
