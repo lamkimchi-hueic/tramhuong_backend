@@ -15,6 +15,7 @@ exports.createOrder = async (req, res) => {
                 productOrders: {
                     create: items.map(item => ({
                         id_product: parseInt(item.id_product),
+                        id_variant: item.id_variant ? parseInt(item.id_variant) : null,
                         product_quantity: parseInt(item.quantity),
                         product_price: parseInt(item.price)
                     }))

@@ -87,15 +87,17 @@ model Category {
 }
 
 model ProductOrder {
+  id               Int       @id @default(autoincrement())
   id_order         Int
   id_product       Int
+  id_variant       Int?
   product_quantity Int?
   product_price    Int?
 
   order   Order   @relation(fields: [id_order], references: [id_order], onDelete: NoAction, onUpdate: NoAction)
   product Product @relation(fields: [id_product], references: [id_product], onDelete: NoAction, onUpdate: NoAction)
 
-  @@id([id_order, id_product])
+  @@unique([id_order, id_product, id_variant])
   @@map("products_orders")
 }
 
