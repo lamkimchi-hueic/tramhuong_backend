@@ -112,7 +112,10 @@ exports.createCategory = async (req, res) => {
         const data = { category_name: categoryName };
         if (req.file) {
             const cloudinaryUrl = await uploadToCloudinary(req.file.path, 'categories');
-            data.image_url = cloudinaryUrl || `/uploads/categories/${req.file.filename}`;
+            if (!cloudinaryUrl) {
+                return res.status(400).json({ message: 'Tải ảnh lên Cloudinary thất bại. Vui lòng thử lại.' });
+            }
+            data.image_url = cloudinaryUrl;
         } else if (req.body.image_url) {
             data.image_url = req.body.image_url;
         }
@@ -142,7 +145,10 @@ exports.updateCategory = async (req, res) => {
 
         if (req.file) {
             const cloudinaryUrl = await uploadToCloudinary(req.file.path, 'categories');
-            data.image_url = cloudinaryUrl || `/uploads/categories/${req.file.filename}`;
+            if (!cloudinaryUrl) {
+                return res.status(400).json({ message: 'Tải ảnh lên Cloudinary thất bại. Vui lòng thử lại.' });
+            }
+            data.image_url = cloudinaryUrl;
         } else if (req.body.image_url !== undefined) {
             data.image_url = req.body.image_url;
         }

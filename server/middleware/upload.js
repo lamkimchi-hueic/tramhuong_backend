@@ -51,15 +51,21 @@ const uploadCategory = multer({ storage: categoryStorage, fileFilter, limits: { 
  * @returns {Promise<string|null>} Cloudinary URL or null
  */
 const uploadToCloudinary = async (localPath, folder) => {
-    if (!process.env.CLOUDINARY_URL || !localPath) return null;
+    if (!process.env.CLOUDINARY_URL) {
+        console.error('⚠️  CLOUDINARY_URL not configured. Images will be lost on redeploy!');
+        return null;
+    }
+    if (!localPath) return null;
+    
     try {
         const result = await cloudinary.uploader.upload(localPath, {
             folder: `tramhuong/${folder}`,
             resource_type: 'auto'
         });
+        console.log(`✓ Cloudinary upload success: ${result.secure_url}`);
         return result.secure_url;
     } catch (error) {
-        console.error('Cloudinary Upload Error:', error);
+        console.error('❌ Cloudinary Upload Error:', error.message);
         return null;
     }
 };
