@@ -7,7 +7,7 @@ const categoryCtrl = require('../controllers/categoryController');
 const orderCtrl = require('../controllers/orderController');
 const settingCtrl = require('../controllers/siteSettingController');
 const { verifyToken, isAdmin, isEmployee } = require('../middleware/auth');
-const { upload, uploadCategory } = require('../middleware/upload');
+const { upload, uploadCategory, uploadHero } = require('../middleware/upload');
 
 // ========== Auth Routes ==========
 router.post('/register', authCtrl.register);
@@ -80,6 +80,10 @@ router.get('/settings', settingCtrl.getAllSettings); // public
 router.get('/settings/list', verifyToken, isAdmin, settingCtrl.getAllSettingsList); // admin - danh sách đầy đủ
 router.get('/settings/:key', settingCtrl.getSettingByKey); // public
 router.post('/settings', verifyToken, isAdmin, settingCtrl.upsertSetting); // admin - tạo/cập nhật 1
+router.post('/settings/hero/upload', verifyToken, isAdmin, uploadHero.fields([
+  { name: 'hero_image', maxCount: 1 },
+  { name: 'logo_image', maxCount: 1 }
+]), settingCtrl.uploadHeroImages); // admin - upload hero images
 router.put('/settings/bulk', verifyToken, isAdmin, settingCtrl.bulkUpsertSettings); // admin - cập nhật nhiều
 router.delete('/settings/:key', verifyToken, isAdmin, settingCtrl.deleteSetting); // admin - xóa
 

@@ -86,6 +86,50 @@ exports.bulkUpsertSettings = async (req, res) => {
     }
 };
 
+// Upload hero images (hero_image, logo_image)
+exports.uploadHeroImages = async (req, res) => {
+    try {
+        const files = req.files || {};
+        const heroImageFile = files.hero_image?.[0];
+        const logoImageFile = files.logo_image?.[0];
+
+        const updates = [];
+
+        // Xử lý hero image
+        if (heroImageFile) {
+            const heroImagePath = `/uploads/hero/${heroImageFile.filename}`;
+            updates.push(
+                prisma.siteSetting.upsert({
+                    where: { key: 'hero_image_url' },
+                    update: { value: heroImagePath },
+                    create: { key: 'hero_image_url', value: heroImagePath }
+                })
+            );
+        }
+
+        // Xử lý logo image
+        if (logoImageFile) {
+            const logoPath = `/uploads/hero/${logoImageFile.filename}`;
+            updates.push(
+                prisma.siteSetting.upsert({
+                    where: { key: 'logo_url' },
+                    update: { value: logoPath },
+                    create: { key: 'logo_url', value: logoPath }
+                })
+            );
+        }
+
+        if (updates.length === 0) {
+            return res.status(400).json({ message: 'Không có file nào được upload' });
+        }
+
+        const results = await prisma.$transaction(updates);
+        res.json({ message: 'Upload ảnh thành công', data: results });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 // Xóa cài đặt
 exports.deleteSetting = async (req, res) => {
     try {

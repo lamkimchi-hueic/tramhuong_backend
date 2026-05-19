@@ -16,8 +16,10 @@ if (process.env.CLOUDINARY_URL) {
 // Ensure uploads directories exist
 const productDir = path.join(__dirname, '../../uploads/products');
 const categoryDir = path.join(__dirname, '../../uploads/categories');
+const heroDir = path.join(__dirname, '../../uploads/hero');
 if (!fs.existsSync(productDir)) fs.mkdirSync(productDir, { recursive: true });
 if (!fs.existsSync(categoryDir)) fs.mkdirSync(categoryDir, { recursive: true });
+if (!fs.existsSync(heroDir)) fs.mkdirSync(heroDir, { recursive: true });
 
 const fileFilter = (req, file, cb) => {
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
@@ -44,8 +46,18 @@ const categoryStorage = multer.diskStorage({
     }
 });
 
+const heroStorage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, heroDir),
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        const filePrefix = file.fieldname === 'hero_image' ? 'hero' : 'logo';
+        cb(null, `${filePrefix}-${uniqueSuffix}${path.extname(file.originalname)}`);
+    }
+});
+
 const upload = multer({ storage: productStorage, fileFilter, limits: { fileSize: 5 * 1024 * 1024 } });
 const uploadCategory = multer({ storage: categoryStorage, fileFilter, limits: { fileSize: 5 * 1024 * 1024 } });
+const uploadHero = multer({ storage: heroStorage, fileFilter, limits: { fileSize: 5 * 1024 * 1024 } });
 
 /**
  * Middleware helper to upload a local file to Cloudinary
@@ -98,4 +110,4 @@ const uploadToCloudinary = async (localPath, folder) => {
     }
 };
 
-module.exports = { upload, uploadCategory, uploadToCloudinary };
+module.exports = { upload, uploadCategory, uploadHero, uploadToCloudinary };
