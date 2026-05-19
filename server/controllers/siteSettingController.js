@@ -90,14 +90,23 @@ exports.bulkUpsertSettings = async (req, res) => {
 exports.uploadHeroImages = async (req, res) => {
     try {
         const files = req.files || {};
+        console.log('📤 uploadHeroImages called');
+        console.log('Files received:', Object.keys(files));
+        console.log('hero_image:', files.hero_image);
+        console.log('logo_image:', files.logo_image);
+
         const heroImageFile = files.hero_image?.[0];
         const logoImageFile = files.logo_image?.[0];
+
+        console.log('Processed heroImageFile:', heroImageFile?.filename);
+        console.log('Processed logoImageFile:', logoImageFile?.filename);
 
         const updates = [];
 
         // Xử lý hero image
         if (heroImageFile) {
             const heroImagePath = `/uploads/hero/${heroImageFile.filename}`;
+            console.log('✓ Saving hero_image_url:', heroImagePath);
             updates.push(
                 prisma.siteSetting.upsert({
                     where: { key: 'hero_image_url' },
@@ -110,6 +119,7 @@ exports.uploadHeroImages = async (req, res) => {
         // Xử lý logo image
         if (logoImageFile) {
             const logoPath = `/uploads/hero/${logoImageFile.filename}`;
+            console.log('✓ Saving logo_url:', logoPath);
             updates.push(
                 prisma.siteSetting.upsert({
                     where: { key: 'logo_url' },
@@ -120,12 +130,15 @@ exports.uploadHeroImages = async (req, res) => {
         }
 
         if (updates.length === 0) {
+            console.warn('⚠️  No files to upload');
             return res.status(400).json({ message: 'Không có file nào được upload' });
         }
 
         const results = await prisma.$transaction(updates);
+        console.log('✓ Update successful:', results);
         res.json({ message: 'Upload ảnh thành công', data: results });
     } catch (error) {
+        console.error('❌ uploadHeroImages error:', error);
         res.status(500).json({ message: error.message });
     }
 };
