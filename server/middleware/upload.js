@@ -87,14 +87,14 @@ const uploadToCloudinary = async (localPath, folder) => {
     }
 
     try {
-        console.log(`📤 Uploading to Cloudinary: ${path.basename(absolutePath)} -> ${folder}`);
+        console.log(`📤 Uploading to Cloudinary (with compression & auto format): ${path.basename(absolutePath)} -> ${folder}`);
         const result = await cloudinary.uploader.upload(absolutePath, {
             folder: `tramhuong/${folder}`,
             resource_type: 'image',
             transformation: [
-                { width: 1200, crop: "limit" },
-                { quality: "auto" },
-                { fetch_format: "auto" }
+                { width: 1200, crop: 'limit' },
+                { quality: 'auto:good' },
+                { fetch_format: 'auto' }
             ]
         });
         
