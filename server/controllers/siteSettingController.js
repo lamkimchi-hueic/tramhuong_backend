@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { uploadToCloudinary } = require('../middleware/upload');
 
 // Lấy tất cả cài đặt (public)
 exports.getAllSettings = async (req, res) => {
@@ -105,7 +106,11 @@ exports.uploadHeroImages = async (req, res) => {
 
         // Xử lý hero image
         if (heroImageFile) {
-            const heroImagePath = `/uploads/hero/${heroImageFile.filename}`;
+            const cloudinaryUrl = await uploadToCloudinary(heroImageFile.path, 'hero');
+            if (!cloudinaryUrl && process.env.NODE_ENV === 'production') {
+                return res.status(400).json({ message: 'Tải ảnh hero lên Cloudinary thất bại. Vui lòng thử lại.' });
+            }
+            const heroImagePath = cloudinaryUrl || `/uploads/hero/${heroImageFile.filename}`;
             console.log('✓ Saving hero_image_url:', heroImagePath);
             updates.push(
                 prisma.siteSetting.upsert({
@@ -118,7 +123,11 @@ exports.uploadHeroImages = async (req, res) => {
 
         // Xử lý logo image
         if (logoImageFile) {
-            const logoPath = `/uploads/hero/${logoImageFile.filename}`;
+            const cloudinaryUrl = await uploadToCloudinary(logoImageFile.path, 'hero');
+            if (!cloudinaryUrl && process.env.NODE_ENV === 'production') {
+                return res.status(400).json({ message: 'Tải ảnh logo lên Cloudinary thất bại. Vui lòng thử lại.' });
+            }
+            const logoPath = cloudinaryUrl || `/uploads/hero/${logoImageFile.filename}`;
             console.log('✓ Saving logo_url:', logoPath);
             updates.push(
                 prisma.siteSetting.upsert({
