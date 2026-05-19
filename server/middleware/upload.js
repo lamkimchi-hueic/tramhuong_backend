@@ -90,7 +90,12 @@ const uploadToCloudinary = async (localPath, folder) => {
         console.log(`📤 Uploading to Cloudinary: ${path.basename(absolutePath)} -> ${folder}`);
         const result = await cloudinary.uploader.upload(absolutePath, {
             folder: `tramhuong/${folder}`,
-            resource_type: 'auto'
+            resource_type: 'image',
+            transformation: [
+                { width: 1200, crop: "limit" },
+                { quality: "auto" },
+                { fetch_format: "auto" }
+            ]
         });
         
         // Delete local file after successful upload

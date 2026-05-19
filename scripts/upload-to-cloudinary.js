@@ -40,6 +40,11 @@ async function uploadFile(filePath, folder) {
             public_id: publicId,
             overwrite: true,
             resource_type: 'image',
+            transformation: [
+                { width: 1200, crop: "limit" },
+                { quality: "auto" },
+                { fetch_format: "auto" }
+            ]
         });
         return res.secure_url;
     } catch (e) {
