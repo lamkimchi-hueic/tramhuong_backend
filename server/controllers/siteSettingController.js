@@ -87,20 +87,17 @@ exports.bulkUpsertSettings = async (req, res) => {
     }
 };
 
-// Upload hero images (hero_image, logo_image)
+// Upload hero images (hero_image, logo_image, about_image, process_image)
 exports.uploadHeroImages = async (req, res) => {
     try {
         const files = req.files || {};
         console.log('📤 uploadHeroImages called');
         console.log('Files received:', Object.keys(files));
-        console.log('hero_image:', files.hero_image);
-        console.log('logo_image:', files.logo_image);
 
         const heroImageFile = files.hero_image?.[0];
         const logoImageFile = files.logo_image?.[0];
-
-        console.log('Processed heroImageFile:', heroImageFile?.filename);
-        console.log('Processed logoImageFile:', logoImageFile?.filename);
+        const aboutImageFile = files.about_image?.[0];
+        const processImageFile = files.process_image?.[0];
 
         const updates = [];
 
@@ -134,6 +131,40 @@ exports.uploadHeroImages = async (req, res) => {
                     where: { key: 'logo_url' },
                     update: { value: logoPath },
                     create: { key: 'logo_url', value: logoPath }
+                })
+            );
+        }
+
+        // Xử lý about image
+        if (aboutImageFile) {
+            const cloudinaryUrl = await uploadToCloudinary(aboutImageFile.path, 'about');
+            if (!cloudinaryUrl && process.env.NODE_ENV === 'production') {
+                return res.status(400).json({ message: 'Tải ảnh about lên Cloudinary thất bại. Vui lòng thử lại.' });
+            }
+            const aboutImagePath = cloudinaryUrl || `/uploads/hero/${aboutImageFile.filename}`;
+            console.log('✓ Saving about_image_url:', aboutImagePath);
+            updates.push(
+                prisma.siteSetting.upsert({
+                    where: { key: 'about_image_url' },
+                    update: { value: aboutImagePath },
+                    create: { key: 'about_image_url', value: aboutImagePath }
+                })
+            );
+        }
+
+        // Xử lý process image
+        if (processImageFile) {
+            const cloudinaryUrl = await uploadToCloudinary(processImageFile.path, 'process');
+            if (!cloudinaryUrl && process.env.NODE_ENV === 'production') {
+                return res.status(400).json({ message: 'Tải ảnh process lên Cloudinary thất bại. Vui lòng thử lại.' });
+            }
+            const processImagePath = cloudinaryUrl || `/uploads/hero/${processImageFile.filename}`;
+            console.log('✓ Saving process_image_url:', processImagePath);
+            updates.push(
+                prisma.siteSetting.upsert({
+                    where: { key: 'process_image_url' },
+                    update: { value: processImagePath },
+                    create: { key: 'process_image_url', value: processImagePath }
                 })
             );
         }

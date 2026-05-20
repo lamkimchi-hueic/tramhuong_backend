@@ -82,8 +82,10 @@ router.get('/settings/:key', settingCtrl.getSettingByKey); // public
 router.post('/settings', verifyToken, isAdmin, settingCtrl.upsertSetting); // admin - tạo/cập nhật 1
 router.post('/settings/hero/upload', verifyToken, isAdmin, uploadHero.fields([
   { name: 'hero_image', maxCount: 1 },
-  { name: 'logo_image', maxCount: 1 }
-]), settingCtrl.uploadHeroImages); // admin - upload hero images
+  { name: 'logo_image', maxCount: 1 },
+  { name: 'about_image', maxCount: 1 },
+  { name: 'process_image', maxCount: 1 }
+]), settingCtrl.uploadHeroImages); // admin - upload images
 router.put('/settings/bulk', verifyToken, isAdmin, settingCtrl.bulkUpsertSettings); // admin - cập nhật nhiều
 router.delete('/settings/:key', verifyToken, isAdmin, settingCtrl.deleteSetting); // admin - xóa
 
