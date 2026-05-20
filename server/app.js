@@ -16,6 +16,7 @@ const express = require('express');
 const cors = require('cors');
 const prisma = require('./config/db');
 const routes = require('./routes');
+const { initSiteSettings } = require('../scripts/init-site-settings');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -51,6 +52,9 @@ const startServer = async () => {
     try {
         await prisma.$connect();
         console.log('Kết nối database thành công!');
+
+        // Initialize default site settings if needed
+        await initSiteSettings(prisma);
 
         app.listen(PORT, () => {
             console.log(` Server đang chạy tại http://localhost:${PORT}`);

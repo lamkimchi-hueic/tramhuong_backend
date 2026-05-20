@@ -4,16 +4,20 @@
   "description": "Tram Huong Backend API",
   "main": "server/app.js",
   "scripts": {
-    "build": "npx prisma generate",
+    "build": "npx prisma generate && node prisma/seed.js",
     "start": "node server/app.js",
     "sync-db": "node scripts/sync-mysql-to-neon.js",
     "dev": "node --watch server/app.js",
+    "seed": "node prisma/seed.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "bcrypt": "^6.0.0",
