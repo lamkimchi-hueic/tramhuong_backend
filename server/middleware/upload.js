@@ -5,9 +5,7 @@ const cloudinary = require('cloudinary').v2;
 
 // Configure Cloudinary - explicit config from URL
 if (process.env.CLOUDINARY_URL) {
-    cloudinary.config({
-        cloudinary_url: process.env.CLOUDINARY_URL
-    });
+    cloudinary.config();
     console.log('✓ Cloudinary configured successfully');
 } else {
     console.warn('⚠️  CLOUDINARY_URL not set - image uploads will fail');
