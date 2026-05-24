@@ -104,10 +104,10 @@ exports.uploadHeroImages = async (req, res) => {
         // Xử lý hero image
         if (heroImageFile) {
             const cloudinaryUrl = await uploadToCloudinary(heroImageFile.path, 'hero');
-            if (!cloudinaryUrl && process.env.NODE_ENV === 'production') {
-                return res.status(400).json({ message: 'Tải ảnh hero lên Cloudinary thất bại. Vui lòng thử lại.' });
+            if (!cloudinaryUrl) {
+                return res.status(400).json({ message: 'Tải ảnh hero lên Cloudinary thất bại. Vui lòng kiểm tra cấu hình Cloudinary.' });
             }
-            const heroImagePath = cloudinaryUrl || `/uploads/hero/${heroImageFile.filename}`;
+            const heroImagePath = cloudinaryUrl;
             console.log('✓ Saving hero_image_url:', heroImagePath);
             updates.push(
                 prisma.siteSetting.upsert({
@@ -121,10 +121,10 @@ exports.uploadHeroImages = async (req, res) => {
         // Xử lý logo image
         if (logoImageFile) {
             const cloudinaryUrl = await uploadToCloudinary(logoImageFile.path, 'hero');
-            if (!cloudinaryUrl && process.env.NODE_ENV === 'production') {
-                return res.status(400).json({ message: 'Tải ảnh logo lên Cloudinary thất bại. Vui lòng thử lại.' });
+            if (!cloudinaryUrl) {
+                return res.status(400).json({ message: 'Tải ảnh logo lên Cloudinary thất bại. Vui lòng kiểm tra cấu hình Cloudinary.' });
             }
-            const logoPath = cloudinaryUrl || `/uploads/hero/${logoImageFile.filename}`;
+            const logoPath = cloudinaryUrl;
             console.log('✓ Saving logo_url:', logoPath);
             updates.push(
                 prisma.siteSetting.upsert({
@@ -138,10 +138,10 @@ exports.uploadHeroImages = async (req, res) => {
         // Xử lý about image
         if (aboutImageFile) {
             const cloudinaryUrl = await uploadToCloudinary(aboutImageFile.path, 'about');
-            if (!cloudinaryUrl && process.env.NODE_ENV === 'production') {
-                return res.status(400).json({ message: 'Tải ảnh about lên Cloudinary thất bại. Vui lòng thử lại.' });
+            if (!cloudinaryUrl) {
+                return res.status(400).json({ message: 'Tải ảnh about lên Cloudinary thất bại. Vui lòng kiểm tra cấu hình Cloudinary.' });
             }
-            const aboutImagePath = cloudinaryUrl || `/uploads/hero/${aboutImageFile.filename}`;
+            const aboutImagePath = cloudinaryUrl;
             console.log('✓ Saving about_image_url:', aboutImagePath);
             updates.push(
                 prisma.siteSetting.upsert({
@@ -155,10 +155,10 @@ exports.uploadHeroImages = async (req, res) => {
         // Xử lý process image
         if (processImageFile) {
             const cloudinaryUrl = await uploadToCloudinary(processImageFile.path, 'process');
-            if (!cloudinaryUrl && process.env.NODE_ENV === 'production') {
-                return res.status(400).json({ message: 'Tải ảnh process lên Cloudinary thất bại. Vui lòng thử lại.' });
+            if (!cloudinaryUrl) {
+                return res.status(400).json({ message: 'Tải ảnh process lên Cloudinary thất bại. Vui lòng kiểm tra cấu hình Cloudinary.' });
             }
-            const processImagePath = cloudinaryUrl || `/uploads/hero/${processImageFile.filename}`;
+            const processImagePath = cloudinaryUrl;
             console.log('✓ Saving process_image_url:', processImagePath);
             updates.push(
                 prisma.siteSetting.upsert({
@@ -198,3 +198,74 @@ exports.deleteSetting = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+// Quét và sửa các link local path bị lỗi trên Render
+exports.fixLocalPaths = async (req, res) => {
+    try {
+        console.log('🧹 Starting cleanup of local image paths in database...');
+        let updatedSettingsCount = 0;
+        let updatedProductsCount = 0;
+        let updatedCategoriesCount = 0;
+
+        // 1. Site Settings
+        const settings = await prisma.siteSetting.findMany();
+        for (const setting of settings) {
+            if (setting.value && setting.value.startsWith('/uploads/')) {
+                let newValue = '';
+                if (setting.key === 'hero_image_url') {
+                    newValue = 'https://res.cloudinary.com/dcywlpxwi/image/upload/v1778780041/tramhuong/assets/thac.jpg';
+                } else if (setting.key === 'logo_url') {
+                    newValue = ''; // Sẽ fallback về logo SVG mặc định trong Header.jsx
+                }
+                
+                await prisma.siteSetting.update({
+                    where: { id: setting.id },
+                    data: { value: newValue }
+                });
+                updatedSettingsCount++;
+                console.log(`  [setting] Reset ${setting.key} to: "${newValue}"`);
+            }
+        }
+
+        // 2. Products
+        const products = await prisma.product.findMany();
+        for (const product of products) {
+            if (product.image_url && product.image_url.startsWith('/uploads/')) {
+                const placeholder = 'https://images.unsplash.com/photo-1545048702-79362596cdc9?auto=format&fit=crop&w=1200&q=85';
+                await prisma.product.update({
+                    where: { id_product: product.id_product },
+                    data: { image_url: placeholder }
+                });
+                updatedProductsCount++;
+                console.log(`  [product] Reset "${product.product_name}" image to placeholder`);
+            }
+        }
+
+        // 3. Categories
+        const categories = await prisma.category.findMany();
+        for (const category of categories) {
+            if (category.image_url && category.image_url.startsWith('/uploads/')) {
+                const placeholder = 'https://images.unsplash.com/photo-1545048702-79362596cdc9?auto=format&fit=crop&w=1200&q=85';
+                await prisma.category.update({
+                    where: { id_category: category.id_category },
+                    data: { image_url: placeholder }
+                });
+                updatedCategoriesCount++;
+                console.log(`  [category] Reset "${category.category_name}" image to placeholder`);
+            }
+        }
+
+        res.json({
+            message: 'Đã dọn dẹp và sửa tất cả link local path thành công!',
+            report: {
+                settings_fixed: updatedSettingsCount,
+                products_fixed: updatedProductsCount,
+                categories_fixed: updatedCategoriesCount
+            }
+        });
+    } catch (error) {
+        console.error('❌ fixLocalPaths error:', error);
+        res.status(500).json({ message: error.message });
+    }
+};
+

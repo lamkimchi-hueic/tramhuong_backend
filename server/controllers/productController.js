@@ -51,7 +51,10 @@ const buildProductPayload = async (body = {}, file = null) => {
     // Handle image upload
     if (file) {
         const cloudinaryUrl = await uploadToCloudinary(file.path, 'products');
-        payload.image_url = cloudinaryUrl || `/uploads/products/${file.filename}`;
+        if (!cloudinaryUrl) {
+            throw new Error('Tải ảnh sản phẩm lên Cloudinary thất bại. Vui lòng kiểm tra cấu hình Cloudinary.');
+        }
+        payload.image_url = cloudinaryUrl;
     } else if (body.image_url !== undefined) {
         payload.image_url = body.image_url;
     }
@@ -368,7 +371,10 @@ exports.uploadProductImage = async (req, res) => {
         }
 
         const cloudinaryUrl = await uploadToCloudinary(req.file.path, 'products');
-        const image_url = cloudinaryUrl || `/uploads/products/${req.file.filename}`;
+        if (!cloudinaryUrl) {
+            return res.status(400).json({ message: 'Tải ảnh sản phẩm lên Cloudinary thất bại. Vui lòng kiểm tra cấu hình Cloudinary.' });
+        }
+        const image_url = cloudinaryUrl;
 
         const updatedProduct = await prisma.product.update({
             where: { id_product: parseInt(id) },

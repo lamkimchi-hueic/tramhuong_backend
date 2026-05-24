@@ -87,6 +87,7 @@ router.post('/settings/hero/upload', verifyToken, isAdmin, uploadHero.fields([
   { name: 'process_image', maxCount: 1 }
 ]), settingCtrl.uploadHeroImages); // admin - upload images
 router.put('/settings/bulk', verifyToken, isAdmin, settingCtrl.bulkUpsertSettings); // admin - cập nhật nhiều
+router.post('/settings/cleanup/local-paths', verifyToken, isAdmin, settingCtrl.fixLocalPaths); // admin - dọn dẹp local paths bị lỗi
 router.delete('/settings/:key', verifyToken, isAdmin, settingCtrl.deleteSetting); // admin - xóa
 
 module.exports = router;
